@@ -6,7 +6,6 @@ import pytz
 import cv2
 import torch
 import asyncio
-import pathlib
 from telegram.ext import Application
 from telegram import Bot
 import logging
@@ -16,14 +15,11 @@ import os
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-temp = pathlib.PosixPath
-pathlib.PosixPath = pathlib.WindowsPath
-
 st.set_page_config(page_title="Dashboard Rokok", layout="centered")
 
 logging.basicConfig(
-format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-level=logging.INFO
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
@@ -34,7 +30,7 @@ WIB = pytz.timezone('Asia/Jakarta')
 TELEGRAM_TOKEN = "7941979379:AAEWGtlb87RYkvht8GzL8Ber29uosKo3e4s"
 CHAT_ID = "5721363432"
 FIREBASE_URL = "https://asap-99106-default-rtdb.asia-southeast1.firebasedatabase.app/sensor.json"
-CAMERA_URL = "http://192.168.1.100:81/stream"
+CAMERA_URL = "http://192.168.1.12:81/stream"
 FIREBASE_SERVO_URL = "https://servo-control-f3c90-default-rtdb.asia-southeast1.firebasedatabase.app/servo.json"
 GEMINI_API_KEY = "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"
 GEMINI_MODEL = "google/gemini-2.0-flash-001"
@@ -103,28 +99,28 @@ def ambil_data():
 def kirim_telegram(data):
     if data is None:
         return
-
+        
     timestamp = datetime.datetime.now(WIB).strftime("%H:%M:%S")
     level = data.get("asap", 0)
     status, emoji = ("Aman", "😊") if level < 1000 else ("Waspada", "😷") if level < 1200 else ("Bahaya", "🚨")
 
     pesan = f"""
-🚭 Notifikasi Deteksi Asap Rokok
-🕒 Waktu: {timestamp} WIB
-💨 Level Asap: {level} {emoji}
-📊 Status: {status} {emoji}
+🚭 Notifikasi Deteksi Asap Rokok  
+🕒 Waktu: {timestamp} WIB  
+💨 Level Asap: {level} {emoji}  
+📊 Status: {status} {emoji}  
 
-🔍 Detail Sensor:
-• 💨 MQ2 (Asap Rokok): {data.get('mq2', 'N/A')}
-• 💨 MQ135 (Asap Rokok): {data.get('mq135', 'N/A')}
-• 🌡️ Suhu Lingkungan: {data.get('suhu', 'N/A')} °C
-• 💧 Kelembapan Udara: {data.get('kelembapan', 'N/A')} %
+🔍 Detail Sensor:  
+• 💨 MQ2 (Asap Rokok): {data.get('mq2', 'N/A')}  
+• 💨 MQ135 (Asap Rokok): {data.get('mq135', 'N/A')}  
+• 🌡️ Suhu Lingkungan: {data.get('suhu', 'N/A')} °C  
+• 💧 Kelembapan Udara: {data.get('kelembapan', 'N/A')} %  
 
-📝 Catatan:
-• MQ2 mendeteksi asap rokok dan senyawa volatil.
-• MQ135 mendeteksi asap rokok.
-• Suhu & Kelembapan memengaruhi distribusi asap.
-    """
+📝 Catatan:  
+- MQ2 mendeteksi asap rokok dan senyawa volatil.  
+- MQ135 mendeteksi asap rokok.  
+- Suhu & Kelembapan memengaruhi distribusi asap.  
+"""
     if level >= 1200:
         pesan += "\n🚨 PERINGATAN KRITIS: Tingkat asap sangat tinggi! Aktivitas merokok terdeteksi. Segera periksa lokasi! 🚭"
 
@@ -143,7 +139,7 @@ def kirim_telegram(data):
 def load_yolo_model():
     try:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        model = torch.hub.load('yolov5', 'custom', path='model/best.pt', source='local')
+        model = torch.hub.load('ultralytics/yolov5', 'yolov5s', device=device)
         return model
     except Exception as e:
         st.error(f"Gagal memuat YOLOv5: {str(e)}")
@@ -155,29 +151,29 @@ async def run_camera_detection(frame_placeholder, status_placeholder):
         if not cap.isOpened():
             status_placeholder.error("Tidak dapat membuka kamera")
             return
-
+            
         while st.session_state.cam_running:
             ret, frame = cap.read()
             if not ret:
                 status_placeholder.warning("Gagal membaca frame, mencoba lagi...")
                 await asyncio.sleep(1)
                 continue
-            
+                
             st.session_state.last_frame = frame.copy()
-        
+            
             if st.session_state.model_cam:
                 results = st.session_state.model_cam(frame)
                 rendered_frame = np.squeeze(results.render())
-                df = results.pandas().xyxy[0]
+                df = results telecommunications.pandas().xyxy[0]
                 found_person = 'person' in df['name'].values
                 found_smoke = 'smoke' in df['name'].values
             else:
                 rendered_frame = frame
                 found_person = found_smoke = False
-            
+                
             _, buffer = cv2.imencode('.jpg', rendered_frame)
             st.session_state.latest_frame = buffer.tobytes()
-        
+            
             if found_person and found_smoke:
                 if time.time() - st.session_state.last_notify > ALERT_COOLDOWN:
                     caption = f"🚨 Peringatan: Merokok terdeteksi!\n🕒 Waktu: {datetime.datetime.now(WIB).strftime('%Y-%m-%d %H:%M:%S')}"
@@ -186,10 +182,10 @@ async def run_camera_detection(frame_placeholder, status_placeholder):
                     status_placeholder.warning("Merokok terdeteksi!")
             else:
                 status_placeholder.success("Tidak ada aktivitas merokok")
-            
+                
             frame_placeholder.image(rendered_frame, channels="BGR", use_container_width=True)
             await asyncio.sleep(0.1)
-        
+            
         cap.release()
     except Exception as e:
         status_placeholder.error(f"Error kamera: {str(e)}")
@@ -199,20 +195,20 @@ async def run_camera_detection(frame_placeholder, status_placeholder):
 async def send_periodic_notification(data):
     if data is None:
         return
-
+        
     current_time = time.time()
     if current_time - st.session_state.last_notification_time >= NOTIFICATION_INTERVAL:
         logger.info("Mengirim notifikasi periodik...")
         caption = f"""
-🚭 Laporan Kondisi Ruangan
-🕒 Waktu: {datetime.datetime.now(WIB).strftime('%Y-%m-%d %H:%M:%S')}
-💨 Asap Total: {data.get('asap', 'N/A')} ({'Aman 😊' if data.get('asap', 0) < 1000 else 'Waspada 😷' if data.get('asap', 0) < 1200 else 'Bahaya 🚨'})
+🚭 Laporan Kondisi Ruangan  
+🕒 Waktu: {datetime.datetime.now(WIB).strftime('%Y-%m-%d %H:%M:%S')}  
+💨 Asap Total: {data.get('asap', 'N/A')} ({'Aman 😊' if data.get('asap', 0) < 1000 else 'Waspada 😷' if data.get('asap', 0) < 1200 else 'Bahaya 🚨'})  
 
-🔍 Detail Sensor:
-• 💨 MQ2 (Asap Rokok): {data.get('mq2', 'N/A')}
-• 💨 MQ135 (Asap Rokok): {data.get('mq135', 'N/A')}
-• 🌡️ Suhu: {data.get('suhu', 'N/A')}°C
-• 💧 Kelembapan: {data.get('kelembapan', 'N/A')}%
+🔍 Detail Sensor:  
+• 💨 MQ2 (Asap Rokok): {data.get('mq2', 'N/A')}  
+• 💨 MQ135 (Asap Rokok): {data.get('mq135', 'N/A')}  
+• 🌡️ Suhu: {data.get('suhu', 'N/A')}°C  
+• 💧 Kelembapan: {data.get('kelembapan', 'N/A')}%  
 """
         if st.session_state.latest_frame:
             await send_telegram_photo(st.session_state.latest_frame, caption)
@@ -235,7 +231,7 @@ def get_gemini_response(messages):
 def generate_chatbot_context(data):
     if data is None:
         return "Sistem sedang tidak dapat mengakses data sensor"
-
+        
     return (
         f"Data sensor:\n"
         f"- Asap Total: {data.get('asap', 'N/A')}\n"
@@ -253,165 +249,167 @@ def run_async(coro):
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-
+    
     if loop.is_running():
         return loop.create_task(coro)
     else:
         return loop.run_until_complete(coro)
 
-st.markdown(""" <style>
-body {
-font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-background-color: #1e2a44;
-color: #e0e6f0;
-}
-.main-container {
-max-width: 1200px;
-margin: auto;
-padding: 20px;
-}
-.header {
-background: linear-gradient(135deg, #3b82f6, #10b981);
-color: white;
-padding: 25px;
-border-radius: 16px;
-text-align: center;
-font-size: 38px;
-font-weight: bold;
-margin-bottom: 30px;
-box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-animation: slideIn 0.5s ease-in;
-}
-.narasi {
-background-color: #2a3b5e;
-border-radius: 12px;
-padding: 15px;
-margin-bottom: 20px;
-font-size: 16px;
-color: #a3bffa;
-box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-.data-card {
-background-color: #334876;
-border-radius: 12px;
-padding: 20px;
-margin-bottom: 15px;
-box-shadow: 0 4px, 12px rgba(0,0,0,0.15);
-transition: transform 0.3s, box-shadow 0.3s;
-}
-.data-card:hover {
-transform: translateY(-8px);
-box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-}
-.data-label {
-font-size: 20px;
-font-weight: 600;
-color: #a3bffa;
-}
-.data-value {
-font-size: 28px;
-font-weight: bold;
-color: #60a5fa;
-}
-.status-badge {
-padding: 10px 16px;
-border-radius: 20px;
-font-size: 15px;
-font-weight: 500;
-display: inline-block;
-margin-top: 10px;
-}
-.status-danger { background-color: #f87171; color: #fef2f2; }
-.status-warning { background-color: #f59e0b; color: #fef2f2; }
-.status-success { background-color: #10b981; color: #f0fdf4; }
-.status-info { background-color: #3b82f6; color: #eff6ff; }
-.chat-container {
-max-height: 450px;
-overflow-y: auto;
-background-color: #2a3b5e;
-border-radius: 12px;
-padding: 20px;
-margin-bottom: 20px;
-box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
-}
-.chat-message {
-padding: 12px 18px;
-border-radius: 10px;
-margin-bottom: 12px;
-max-width: 85%;
-animation: fadeInChat 0.3s ease-in;
-}
-.user-message {
-background-color: #60a5fa;
-color: white;
-margin-left: auto;
-}
-.assistant-message {
-background-color: #e0e6f0;
-color: #1e2a44;
-margin-right: auto;
-box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-}
-.stButton>button {
-background-color: #3b82f6;
-color: white;
-border-radius: 10px;
-padding: 12px 24px;
-font-weight: 500;
-transition: background-color 0.3s, transform 0.2s;
-}
-.stButton>button:hover {
-background-color: #2563eb;
-transform: scale(1.05);
-}
-.stSlider .st-bx {
-background-color: #3b82f6;
-}
-.stCheckbox label {
-color: #a3bffa;
-}
-.footer {
-text-align: center;
-color: #a3bffa;
-margin-top: 30px;
-font-size: 14px;
-opacity: 0.8;
-}
-.stTabs [data-baseweb="tab-list"] {
-gap: 0;
-}
-.stTabs [data-baseweb="tab"] {
-height: 50px;
-padding: 0 20px;
-margin: 0;
-}
-.stTabs [aria-selected="true"] {
-background-color: #2a3b5e;
-border-bottom: 3px solid #3b82f6;
-}
-.stTabs [aria-selected="false"] {
-background-color: #1e2a44;
-}
-.tab-content {
-border-top: 1px solid #3b82f6;
-padding-top: 20px;
-margin-top: -1px;
-}
-.sensor-title {
-text-align: left;
-margin-bottom: 20px;
-}
-@keyframes slideIn {
-from { transform: translateY(-20px); opacity: 0; }
-to { transform: translateY(0); opacity: 1; }
-}
-@keyframes fadeInChat {
-from { opacity: 0; transform: translateX(-10px); }
-to { opacity: 1; transform: translateX(0); }
-}
-.fade-in {
-animation: slideIn 0.5s ease-in;
-} </style>
+st.markdown("""
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e2a44;
+            color: #e0e6f0;
+        }
+        .main-container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #3b82f6, #10b981);
+            color: white;
+            padding: 25px;
+            border-radius: 16px;
+            text-align: center;
+            font-size: 38px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            animation: slideIn 0.5s ease-in;
+        }
+        .narasi {
+            background-color: #2a3b5e;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            color: #a3bffa;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .data-card {
+            background-color: #334876;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px, 12px rgba(0,0,0,0.15);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .data-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+        }
+        .data-label {
+            font-size: 20px;
+            font-weight: 600;
+            color: #a3bffa;
+        }
+        .data-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #60a5fa;
+        }
+        .status-badge {
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 15px;
+            font-weight: 500;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .status-danger { background-color: #f87171; color: #fef2f2; }
+        .status-warning { background-color: #f59e0b; color: #fef2f2; }
+        .status-success { background-color: #10b981; color: #f0fdf4; }
+        .status-info { background-color: #3b82f6; color: #eff6ff; }
+        .chat-container {
+            max-height: 450px;
+            overflow-y: auto;
+            background-color: #2a3b5e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .chat-message {
+            padding: 12px 18px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            max-width: 85%;
+            animation: fadeInChat 0.3s ease-in;
+        }
+        .user-message {
+            background-color: #60a5fa;
+            color: white;
+            margin-left: auto;
+        }
+        .assistant-message {
+            background-color: #e0e6f0;
+            color: #1e2a44;
+            margin-right: auto;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+        .stButton>button {
+            background-color: #3b82f6;
+            color: white;
+            border-radius: 10px;
+            padding: 12px 24px;
+            font-weight: 500;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .stButton>button:hover {
+            background-color: #2563eb;
+            transform: scale(1.05);
+        }
+        .stSlider .st-bx {
+            background-color: #3b82f6;
+        }
+        .stCheckbox label {
+            color: #a3bffa;
+        }
+        .footer {
+            text-align: center;
+            color: #a3bffa;
+            margin-top: 30px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 0;
+        }
+        .stTabs [data-baseweb="tab"] {
+            height: 50px;
+            padding: 0 20px;
+            margin: 0;
+        }
+        .stTabs [aria-selected="true"] {
+            background-color: #2a3b5e;
+            border-bottom: 3px solid #3b82f6;
+        }
+        .stTabs [aria-selected="false"] {
+            background-color: #1e2a44;
+        }
+        .tab-content {
+            border-top: 1px solid #3b82f6;
+            padding-top: 20px;
+            margin-top: -1px;
+        }
+        .sensor-title {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeInChat {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .fade-in {
+            animation: slideIn 0.5s ease-in;
+        }
+    </style>
 """, unsafe_allow_html=True)
 
 def main():
@@ -420,12 +418,12 @@ def main():
 
     st.markdown("""
         <div class="narasi">
-        ℹ️ Penjelasan Data Sensor:
+        Penjelasan Data Sensor:
         - MQ2 mendeteksi asap dari rokok secara umum.
         - MQ135 mendeteksi asap rokok.
         - Suhu & Kelembapan memengaruhi penyebaran asap.
         - Asap Total (level) adalah hasil integrasi data yang merepresentasikan potensi keberadaan rokok.
-    
+        
         Status Deteksi:
         - 😊 Aman: Level < 1000  
         - 😷 Waspada: 1000 ≤ Level < 1200  
@@ -440,7 +438,7 @@ def main():
     with tab1:
         st.markdown('<div class="tab-content">', unsafe_allow_html=True)
         st.markdown('<div class="sensor-title"><h3>🔍 Data Sensor Saat Ini</h3></div>', unsafe_allow_html=True)
-    
+        
         data = ambil_data()
         if data:
             col1, col2 = st.columns(2)
@@ -492,7 +490,7 @@ def main():
                 )
 
             level = data.get("asap", 0)
-            st.markdown("### 🧭 Status Deteksi Asap")
+            st.markdown("Status Deteksi Asap")
             status_class = "status-success" if level < 1000 else "status-warning" if level < 1200 else "status-danger"
             st.markdown(
                 f"""
@@ -511,7 +509,7 @@ def main():
                 "kelembapan": data.get("kelembapan", 0)
             })
 
-            st.markdown("### 📈 Grafik Tren Data")
+            st.markdown("Grafik Tren Data")
             st.line_chart({
                 "Asap": [x["asap"] for x in st.session_state.history],
                 "Suhu": [x["suhu"] for x in st.session_state.history],
@@ -528,7 +526,7 @@ def main():
         else:
             st.error("❌ Data tidak ditemukan dari Firebase.")
 
-        st.markdown("### 💬 AI Chatbot")
+        st.markdown("AI Chatbot")
         with st.form("chat_form", clear_on_submit=True):
             st.markdown('<div class="chat-container">', unsafe_allow_html=True)
             for msg in st.session_state.chat_messages[1:]:
@@ -548,7 +546,7 @@ def main():
                     response = get_gemini_response(st.session_state.chat_messages)
                     st.session_state.chat_messages.append({"role": "assistant", "content": response})
                 st.rerun()
-    
+        
         st.markdown('</div>', unsafe_allow_html=True)
 
     with tab2:
@@ -587,7 +585,7 @@ def main():
                     st.error(f"Gagal mengirim perintah ke Firebase: Status {response.status_code}")
             except requests.exceptions.RequestException as e:
                 st.error(f"Terjadi kesalahan jaringan: {e}")
-    
+        
         st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="footer">Dibuat dengan ❤️ oleh Tim SIGMA BOYS</div>', unsafe_allow_html=True)
