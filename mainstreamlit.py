@@ -438,11 +438,11 @@ def main():
     # Penjelasan Awal
     st.markdown("""
         <div class="narasi">
-        ### ℹ️ Penjelasan Data Sensor:
-        - **MQ2** mendeteksi asap dari rokok secara umum.
-        - **MQ135** mendeteksi asap rokok.
-        - **Suhu & Kelembapan** memengaruhi penyebaran asap.
-        - **Asap Total (level)** adalah hasil integrasi data yang merepresentasikan potensi keberadaan rokok.
+        ℹ️ Penjelasan Data Sensor:
+        - MQ2 mendeteksi asap dari rokok secara umum.
+        - MQ135 mendeteksi asap rokok.
+        - Suhu & Kelembapan memengaruhi penyebaran asap.
+        - Asap Total (level) adalah hasil integrasi data yang merepresentasikan potensi keberadaan rokok.
         
         **Status Deteksi:**
         - 😊 Aman: Level < 1000  
