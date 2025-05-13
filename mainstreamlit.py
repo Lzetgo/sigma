@@ -129,10 +129,10 @@ def kirim_telegram(data):
 • 🌡️ *Suhu Lingkungan*: {data.get('suhu', 'N/A')} °C  
 • 💧 *Kelembapan Udara*: {data.get('kelembapan', 'N/A')} %  
 
-*📝 Catatan*:  
-- *MQ2* mendeteksi asap rokok dan senyawa volatil.  
-- *MQ135* mendeteksi asap rokok.  
-- *Suhu & Kelembapan* memengaruhi distribusi asap.  
+📝 Catatan:  
+- MQ2 mendeteksi asap rokok dan senyawa volatil.  
+- MQ135 mendeteksi asap rokok.  
+- Suhu & Kelembapan memengaruhi distribusi asap.  
 """
     if level >= 1200:
         pesan += "\n🚨 *PERINGATAN KRITIS*: Tingkat asap sangat tinggi! Aktivitas merokok terdeteksi. Segera periksa lokasi! 🚭"
@@ -216,20 +216,20 @@ async def send_periodic_notification(data):
     if current_time - st.session_state.last_notification_time >= NOTIFICATION_INTERVAL:
         logger.info("Mengirim notifikasi periodik...")
         caption = f"""
-🚭 *Laporan Kondisi Ruangan*  
+🚭 Laporan Kondisi Ruangan  
 🕒 *Waktu*: {datetime.datetime.now(WIB).strftime('%Y-%m-%d %H:%M:%S')}  
 💨 *Asap Total*: {data.get('asap', 'N/A')} ({'Aman 😊' if data.get('asap', 0) < 1000 else 'Waspada 😷' if data.get('asap', 0) < 1200 else 'Bahaya 🚨'})  
 
-*🔍 Detail Sensor*:  
-• 💨 *MQ2 (Asap Rokok)*: {data.get('mq2', 'N/A')}  
-• 💨 *MQ135 (Asap Rokok)*: {data.get('mq135', 'N/A')}  
-• 🌡️ *Suhu*: {data.get('suhu', 'N/A')}°C  
-• 💧 *Kelembapan*: {data.get('kelembapan', 'N/A')}%  
+🔍 Detail Sensor:  
+• 💨 MQ2 (Asap Rokok): {data.get('mq2', 'N/A')}  
+• 💨 MQ135 (Asap Rokok): {data.get('mq135', 'N/A')}  
+• 🌡️ Suhu: {data.get('suhu', 'N/A')}°C  
+• 💧 Kelembapan: {data.get('kelembapan', 'N/A')}%  
 """
         if st.session_state.latest_frame:
             await send_telegram_photo(st.session_state.latest_frame, caption)
         else:
-            await send_telegram_message(caption + "\n⚠️ *Kamera tidak aktif*")
+            await send_telegram_message(caption + "\n⚠️ Kamera tidak aktif")
         st.session_state.last_notification_time = current_time
         logger.info("Notifikasi periodik dikirim")
 
@@ -439,10 +439,10 @@ def main():
     st.markdown("""
         <div class="narasi">
         ### ℹ️ Penjelasan Data Sensor:
-        - **MQ2** mendeteksi asap dari rokok secara umum.
-        - **MQ135** mendeteksi asap rokok.
-        - **Suhu & Kelembapan** memengaruhi penyebaran asap.
-        - **Asap Total (level)** adalah hasil integrasi data yang merepresentasikan potensi keberadaan rokok.
+        - MQ2 mendeteksi asap dari rokok secara umum.
+        - MQ135 mendeteksi asap rokok.
+        - Suhu & Kelembapan memengaruhi penyebaran asap.
+        - Asap Total (level) adalah hasil integrasi data yang merepresentasikan potensi keberadaan rokok.
         
         **Status Deteksi:**
         - 😊 Aman: Level < 1000  
@@ -515,7 +515,7 @@ def main():
 
             # Status Asap
             level = data.get("asap", 0)
-            st.markdown("### 🧭 Status Deteksi Asap")
+            st.markdown("🧭 Status Deteksi Asap")
             status_class = "status-success" if level < 1000 else "status-warning" if level < 1200 else "status-danger"
             st.markdown(
                 f"""
@@ -535,7 +535,7 @@ def main():
                 "kelembapan": data.get("kelembapan", 0)
             })
 
-            st.markdown("### 📈 Grafik Tren Data")
+            st.markdown("📈 Grafik Tren Data")
             st.line_chart({
                 "Asap": [x["asap"] for x in st.session_state.history],
                 "Suhu": [x["suhu"] for x in st.session_state.history],
@@ -555,7 +555,7 @@ def main():
             st.error("❌ Data tidak ditemukan dari Firebase.")
 
         # Chatbot AI
-        st.markdown("### 💬 AI Chatbot")
+        st.markdown("💬 AI Chatbot")
         with st.form("chat_form", clear_on_submit=True):
             st.markdown('<div class="chat-container">', unsafe_allow_html=True)
             for msg in st.session_state.chat_messages[1:]:
